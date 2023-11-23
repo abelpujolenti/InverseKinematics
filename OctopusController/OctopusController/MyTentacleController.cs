@@ -33,13 +33,12 @@ namespace OctopusController
             switch (tentacleMode){
                 case TentacleMode.LEG:
 
-                    LoadJoints(2, root);
-                    
+                    LoadJoints(2, root);                    
                     break;
                 
                 case TentacleMode.TAIL:
 
-                    //LoadJoints(4, root);
+                    LoadJoints(4, root);
                     break;
                 
                 case TentacleMode.TENTACLE:
@@ -53,15 +52,11 @@ namespace OctopusController
         {
             List<Transform> transformList = new List<Transform> { root };
             
-            //Debug.Log(root.name);
-            
             for (int i = 0; i < jointsLength; i++)
             {
                 transformList.Add(transformList[i].GetChild(1));
-                //Debug.Log(transformList[i].name);
             }
             _endEffectorSphere = transformList[transformList.Count - 1].GetChild(1);
-            //Debug.Log(_endEffectorSphere.name);
                     
             _bones = transformList.ToArray();
         }
