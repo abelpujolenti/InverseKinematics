@@ -39,6 +39,7 @@ namespace OctopusController
         Transform _tailTarget;
         Transform _tailEndEffector;
         MyTentacleController _tail;
+        float[] _initialJointRotation;
         float[] _currentJointRotation;
         float _animationRange;
 
@@ -73,11 +74,14 @@ namespace OctopusController
             _tail = new MyTentacleController();
             _tail.LoadTentacleJoints(TailBase, TentacleMode.TAIL);
             Transform[] bones = _tail.Bones;
-            _currentJointRotation = new float[bones.Length];
-            _currentJointRotation[0] = bones[0].localEulerAngles.z;
+            _initialJointRotation = new float[bones.Length];
+            _currentJointRotation = new float[_initialJointRotation.Length];
+            _initialJointRotation[0] = bones[0].localEulerAngles.z;
+            _currentJointRotation[0] = _initialJointRotation[0];
             for (int i = 1; i < bones.Length; i++)
             {
-                _currentJointRotation[i] = bones[i].localEulerAngles.x;
+                _initialJointRotation[i] = bones[i].localEulerAngles.x;
+                _currentJointRotation[i] = _initialJointRotation[i];
             }
             _tailEndEffector = bones[bones.Length - 1];
         }
@@ -108,8 +112,7 @@ namespace OctopusController
             if (_startTailAnimation)
             {
                 updateTail();
-            }
-            
+            }            
         }
         #endregion
 
@@ -124,11 +127,20 @@ namespace OctopusController
         //TODO: implement Gradient Descent method to move tail if necessary
         private void updateTail()
         {
-            _tail.Bones[0].rotation = Rotate(Quaternion.identity, RotationZ, 60);
-            _tail.Bones[1].rotation = Rotate(_tail.Bones[0].rotation, RotationX, -60);
-            _tail.Bones[2].rotation = Rotate(_tail.Bones[1].rotation, RotationX, -30);
-            _tail.Bones[3].rotation = Rotate(_tail.Bones[2].rotation, RotationX, -15);
-            _tail.Bones[4].rotation = Rotate(_tail.Bones[3].rotation, RotationX, -10);
+            Transform[] bones = _tail.Bones;
+
+            bones[0].rotation = Rotate(Quaternion.identity, RotationZ, _currentJointRotation[0] + 1);
+            bones[1].rotation = Rotate(_tail.Bones[0].rotation, RotationX, _currentJointRotation[1] + 2);
+            bones[2].rotation = Rotate(_tail.Bones[1].rotation, RotationX, _currentJointRotation[2] + 3);
+            bones[3].rotation = Rotate(_tail.Bones[2].rotation, RotationX, _currentJointRotation[3] + 4);
+            bones[4].rotation = Rotate(_tail.Bones[3].rotation, RotationX, _currentJointRotation[4] + 5);
+
+            _currentJointRotation[0] = bones[0].localEulerAngles.z;
+            _currentJointRotation[1] = bones[1].localEulerAngles.x;
+            _currentJointRotation[2] = bones[2].localEulerAngles.x;
+            _currentJointRotation[3] = bones[3].localEulerAngles.x;
+            _currentJointRotation[4] = bones[4].localEulerAngles.x;
+            
         }
         
         //TODO: implement fabrik method to move legs 
