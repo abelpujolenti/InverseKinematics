@@ -39,27 +39,32 @@ namespace OctopusController
         Transform _tailTarget;
         Transform _tailEndEffector;
         MyTentacleController _tail;
+        float[] _currentJointRotation;
         float _animationRange;
 
         //LEGS
-        Transform[] _legTargets;
+        Transform[] _legTargets ;
         Transform[] _legFutureBases;
         MyTentacleController[] _legs = new MyTentacleController[6];
 
         private bool enter;
+        private bool _startLegsAnimation;
+        private bool _startTailAnimation;
 
         
         #region public
         public void InitLegs(Transform[] LegRoots,Transform[] LegFutureBases, Transform[] LegTargets)
         {
             _legs = new MyTentacleController[LegRoots.Length];
+            _legFutureBases = new Transform[LegFutureBases.Length];
+            _legTargets = new Transform[LegTargets.Length];
             //Legs init
-            for(int i = 0; i < LegRoots.Length; i++)
+            for (int i = 0; i < LegRoots.Length; i++)
             {
                 _legs[i] = new MyTentacleController();
-                _legs[i].LoadTentacleJoints(LegRoots[i].GetChild(0), TentacleMode.LEG);
-                _legTargets[i] = LegTargets[i];
+                _legs[i].LoadTentacleJoints(LegRoots[i].GetChild(0), TentacleMode.LEG);                
                 _legFutureBases[i] = LegFutureBases[i];
+                _legTargets[i] = LegTargets[i];
             }
         }
 
@@ -67,7 +72,14 @@ namespace OctopusController
         {
             _tail = new MyTentacleController();
             _tail.LoadTentacleJoints(TailBase, TentacleMode.TAIL);
-            _tailEndEffector = _tail.Bones[_tail.Bones.Length - 1];
+            Transform[] bones = _tail.Bones;
+            _currentJointRotation = new float[bones.Length];
+            _currentJointRotation[0] = bones[0].localEulerAngles.z;
+            for (int i = 1; i < bones.Length; i++)
+            {
+                _currentJointRotation[i] = bones[i].localEulerAngles.x;
+            }
+            _tailEndEffector = bones[bones.Length - 1];
         }
 
         //TODO: Check when to start the animation towards target and implement Gradient Descent method to move the joints.
@@ -75,6 +87,7 @@ namespace OctopusController
         {
             if (Vector3.Distance(target.position, _tailEndEffector.position) < 1)
             {
+                _startTailAnimation = true;
                 _tailTarget = target;    
             }
         }
@@ -82,13 +95,21 @@ namespace OctopusController
         //TODO: Notifies the start of the walking animation
         public void NotifyStartWalk()
         {
-
+            _startLegsAnimation = true;
         }
 
         //TODO: create the apropiate animations and update the IK from the legs and tail
         public void UpdateIK()
-        {
-            updateTail();
+        {            
+            if (_startLegsAnimation)
+            {
+                updateLegs();
+            }
+            if (_startTailAnimation)
+            {
+                updateTail();
+            }
+            
         }
         #endregion
 
@@ -103,21 +124,17 @@ namespace OctopusController
         //TODO: implement Gradient Descent method to move tail if necessary
         private void updateTail()
         {
-            if (!enter)
-            {
-                /*_tail.Bones[0].rotation = Rotate(Quaternion.identity, RotationZ, 60);
-                _tail.Bones[1].rotation = Rotate(_tail.Bones[0].rotation, RotationX, -60);
-                _tail.Bones[2].rotation = Rotate(_tail.Bones[1].rotation, RotationX, -30);
-                _tail.Bones[3].rotation = Rotate(_tail.Bones[2].rotation, RotationX, -15);
-                _tail.Bones[4].rotation = Rotate(_tail.Bones[3].rotation, RotationX, -10);*/
-                enter = true;
-            }
+            _tail.Bones[0].rotation = Rotate(Quaternion.identity, RotationZ, 60);
+            _tail.Bones[1].rotation = Rotate(_tail.Bones[0].rotation, RotationX, -60);
+            _tail.Bones[2].rotation = Rotate(_tail.Bones[1].rotation, RotationX, -30);
+            _tail.Bones[3].rotation = Rotate(_tail.Bones[2].rotation, RotationX, -15);
+            _tail.Bones[4].rotation = Rotate(_tail.Bones[3].rotation, RotationX, -10);
         }
         
         //TODO: implement fabrik method to move legs 
         private void updateLegs()
         {
-
+            updateLegPos();
         }
         #endregion        
             
@@ -211,6 +228,31 @@ namespace OctopusController
             Quaternion result = quaternionRotationZ * quaternionRotationX * quaternionRotationY;
             
             return currentRotation * result;
+        }
+
+        internal Vector3 AxisAnglesFromQuaternion(Quaternion quaternion)
+        {
+            Vector3 axisAngles;
+
+            if (quaternion.w > 1)
+            {
+                quaternion.Normalize();
+            }
+            float angle = (float)(2 * Math.Acos(quaternion.w));
+            double s = Math.Sqrt(1 - quaternion.w * quaternion.w);
+            if (s < 0.001)
+            {
+                axisAngles.x = quaternion.x;
+                axisAngles.y = quaternion.y;
+                axisAngles.z = quaternion.z;
+            }
+            else
+            {
+                axisAngles.x = (float)(quaternion.x / s);
+                axisAngles.y = (float)(quaternion.y / s);
+                axisAngles.z = (float)(quaternion.z / s);
+            }
+            return axisAngles;
         }
     }
 }
