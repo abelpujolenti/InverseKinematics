@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="8e48e54f-f731-4d07-9c40-0a59df91ca29" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/OctopusController/MyScorpionController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/OctopusController/MyScorpionController.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/OctopusController/MyTentacleController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/OctopusController/MyTentacleController.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/OctopusController/bin/Debug/OctopusController.dll" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/OctopusController/bin/Debug/OctopusController.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/OctopusController/bin/Debug/OctopusController.pdb" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "git-widget-placeholder": "master",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)"
+  }
+}]]></component>
+  <component name="TaskManager">
+    <servers />
+  </component>
+</project>
