@@ -39,9 +39,12 @@ namespace OctopusController
         Transform _tailTarget;
         Transform _tailEndEffector;
         MyTentacleController _tail;
+        MyVec[] _jointsAxisRotation;
         float[] _initialJointRotation;
         float[] _currentJointRotation;
+        float _tailSize;
         float _animationRange;
+        Vector3 _currentEndEffectorPosition;
 
         //LEGS
         Transform[] _legTargets ;
@@ -74,22 +77,28 @@ namespace OctopusController
             _tail = new MyTentacleController();
             _tail.LoadTentacleJoints(TailBase, TentacleMode.TAIL);
             Transform[] bones = _tail.Bones;
+            _jointsAxisRotation = new MyVec[bones.Length];
             _initialJointRotation = new float[bones.Length];
             _currentJointRotation = new float[_initialJointRotation.Length];
+
+            _jointsAxisRotation[0] = RotationZ;
             _initialJointRotation[0] = bones[0].localEulerAngles.z;
             _currentJointRotation[0] = _initialJointRotation[0];
             for (int i = 1; i < bones.Length; i++)
             {
+                _tailSize += (bones[i].position - bones[i - 1].position).magnitude;
+                _jointsAxisRotation[i] = RotationX;
                 _initialJointRotation[i] = bones[i].localEulerAngles.x;
                 _currentJointRotation[i] = _initialJointRotation[i];
             }
             _tailEndEffector = bones[bones.Length - 1];
+            _currentEndEffectorPosition = _tailEndEffector.position;
         }
 
         //TODO: Check when to start the animation towards target and implement Gradient Descent method to move the joints.
         public void NotifyTailTarget(Transform target)
         {
-            if (Vector3.Distance(target.position, _tailEndEffector.position) < 1)
+            if (Vector3.Distance(_tail.Bones[0].position, _tailEndEffector.position) < _tailSize)
             {
                 _startTailAnimation = true;
                 _tailTarget = target;    
@@ -129,11 +138,19 @@ namespace OctopusController
         {
             Transform[] bones = _tail.Bones;
 
-            bones[0].rotation = Rotate(Quaternion.identity, RotationZ, _currentJointRotation[0] + 1);
-            bones[1].rotation = Rotate(_tail.Bones[0].rotation, RotationX, _currentJointRotation[1] + 2);
-            bones[2].rotation = Rotate(_tail.Bones[1].rotation, RotationX, _currentJointRotation[2] + 3);
-            bones[3].rotation = Rotate(_tail.Bones[2].rotation, RotationX, _currentJointRotation[3] + 4);
-            bones[4].rotation = Rotate(_tail.Bones[3].rotation, RotationX, _currentJointRotation[4] + 5);
+            for (int i = 0; i < bones.Length; i++)
+            {
+                for (int j = 0; j < bones.Length; j++)
+                {
+                    GradientDescent(bones[i], _jointsAxisRotation[i], _currentJointRotation[i]);
+                }               
+            }
+
+            bones[0].localRotation = Rotate(Quaternion.identity, RotationZ, _currentJointRotation[0] + 1);
+            bones[1].localRotation = Rotate(Quaternion.identity, RotationX, _currentJointRotation[1] + 2);
+            bones[2].localRotation = Rotate(Quaternion.identity, RotationX, _currentJointRotation[2] + 3);
+            bones[3].localRotation = Rotate(Quaternion.identity, RotationX, _currentJointRotation[3] + 4);
+            bones[4].localRotation = Rotate(Quaternion.identity, RotationX, _currentJointRotation[4] + 5);
 
             _currentJointRotation[0] = bones[0].localEulerAngles.z;
             _currentJointRotation[1] = bones[1].localEulerAngles.x;
@@ -141,6 +158,11 @@ namespace OctopusController
             _currentJointRotation[3] = bones[3].localEulerAngles.x;
             _currentJointRotation[4] = bones[4].localEulerAngles.x;
             
+        }
+
+        private void GradientDescent(Transform bone, MyVec axis, float currentJointRotation) 
+        {
+            bone.localRotation = Rotate(Quaternion.identity, axis, currentJointRotation);
         }
         
         //TODO: implement fabrik method to move legs 
