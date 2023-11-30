@@ -21,6 +21,7 @@ namespace OctopusController
         Transform _endEffectorSphere;
 
         public Transform[] Bones { get => _bones; }
+        public Transform EndEffector => _endEffectorSphere;
 
         //Exercise 1.
         public Transform[] LoadTentacleJoints(Transform root, TentacleMode mode)
@@ -55,8 +56,11 @@ namespace OctopusController
             for (int i = 0; i < jointsLength; i++)
             {
                 transformList.Add(transformList[i].GetChild(1));
+                Debug.Log(transformList[i]);
             }
+            Debug.Log(transformList[transformList.Count - 1]);
             _endEffectorSphere = transformList[transformList.Count - 1].GetChild(1);
+            Debug.Log(_endEffectorSphere);
                     
             _bones = transformList.ToArray();
         }

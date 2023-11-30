@@ -44,6 +44,7 @@ namespace OctopusController
         float[] _currentJointRotation;
         float _tailSize;
         float _animationRange;
+        Vector3[] _jointsRelativePositions;
         Vector3 _currentEndEffectorPosition;
 
         //LEGS
@@ -80,6 +81,7 @@ namespace OctopusController
             _jointsAxisRotation = new MyVec[bones.Length];
             _initialJointRotation = new float[bones.Length];
             _currentJointRotation = new float[_initialJointRotation.Length];
+            _jointsRelativePositions = new Vector3[bones.Length];
 
             _jointsAxisRotation[0] = RotationZ;
             _initialJointRotation[0] = bones[0].localEulerAngles.z;
@@ -90,8 +92,12 @@ namespace OctopusController
                 _jointsAxisRotation[i] = RotationX;
                 _initialJointRotation[i] = bones[i].localEulerAngles.x;
                 _currentJointRotation[i] = _initialJointRotation[i];
+                _jointsRelativePositions[i - 1] = bones[i].position - bones[i - 1].position; 
             }
+
+            _jointsRelativePositions[_jointsRelativePositions.Length - 1] = _tailEndEffector.position - bones[_jointsRelativePositions.Length - 1].position;
             _tailEndEffector = bones[bones.Length - 1];
+            Debug.Log(_tailEndEffector);
             _currentEndEffectorPosition = _tailEndEffector.position;
         }
 
@@ -101,8 +107,10 @@ namespace OctopusController
             if (Vector3.Distance(_tail.Bones[0].position, target.position) < _tailSize)
             {
                 _startTailAnimation = true;
-                _tailTarget = target;    
+                _tailTarget = target;
+                return;
             }
+            _startLegsAnimation = false;
         }
 
         //TODO: Notifies the start of the walking animation
@@ -153,7 +161,15 @@ namespace OctopusController
                         GradientDescent(bones[j], _jointsAxisRotation[j], _currentJointRotation[j]);
                     }*/
 
+                    //_currentEndEffectorPosition = _jointsRelativePositions[_jointsRelativePositions.Length - 1] * bones[bones.Length - 1].rotation;
+
+                    Debug.Log(_tailTarget.position);
+                    Debug.Log(_currentEndEffectorPosition);
+                    Debug.Log(_tailEndEffector.position);
+
                     closer = (_tailTarget.position - _tailEndEffector.position).magnitude < (_tailTarget.position - _currentEndEffectorPosition).magnitude;
+
+                    Debug.Log("FU2");
 
                     if (!closer)
                     {
@@ -163,7 +179,7 @@ namespace OctopusController
                 } while (!closer);
             }
 
-            //Debug.Log("Out");
+            
 
             /*bones[0].localRotation = Rotate(Quaternion.identity, RotationZ, _currentJointRotation[0] + 1);
             bones[1].localRotation = Rotate(Quaternion.identity, RotationX, _currentJointRotation[1] + 2);
@@ -175,8 +191,7 @@ namespace OctopusController
             /*_currentJointRotation[1] = bones[1].localEulerAngles.x;
             _currentJointRotation[2] = bones[2].localEulerAngles.x;
             _currentJointRotation[3] = bones[3].localEulerAngles.x;
-            _currentJointRotation[4] = bones[4].localEulerAngles.x;*/
-            
+            _currentJointRotation[4] = bones[4].localEulerAngles.x;*/            
         }
 
         private void GradientDescent(Transform bone, MyVec axis, float currentJointRotation) 
