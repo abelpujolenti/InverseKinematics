@@ -98,7 +98,7 @@ namespace OctopusController
         //TODO: Check when to start the animation towards target and implement Gradient Descent method to move the joints.
         public void NotifyTailTarget(Transform target)
         {
-            if (Vector3.Distance(_tail.Bones[0].position, _tailEndEffector.position) < _tailSize)
+            if (Vector3.Distance(_tail.Bones[0].position, target.position) < _tailSize)
             {
                 _startTailAnimation = true;
                 _tailTarget = target;    
@@ -140,23 +140,42 @@ namespace OctopusController
 
             for (int i = 0; i < bones.Length; i++)
             {
-                for (int j = 0; j < bones.Length; j++)
+                float initialStep = 1;
+
+                bool closer;
+
+                do
                 {
-                    GradientDescent(bones[i], _jointsAxisRotation[i], _currentJointRotation[i]);
-                }               
+
+                    GradientDescent(bones[i], _jointsAxisRotation[i], _currentJointRotation[i] + initialStep);
+                    /*for (int j = i + 1; j < bones.Length; j++)
+                    {
+                        GradientDescent(bones[j], _jointsAxisRotation[j], _currentJointRotation[j]);
+                    }*/
+
+                    closer = (_tailTarget.position - _tailEndEffector.position).magnitude < (_tailTarget.position - _currentEndEffectorPosition).magnitude;
+
+                    if (!closer)
+                    {
+                        initialStep *= -1;
+                    }                    
+
+                } while (!closer);
             }
 
-            bones[0].localRotation = Rotate(Quaternion.identity, RotationZ, _currentJointRotation[0] + 1);
+            //Debug.Log("Out");
+
+            /*bones[0].localRotation = Rotate(Quaternion.identity, RotationZ, _currentJointRotation[0] + 1);
             bones[1].localRotation = Rotate(Quaternion.identity, RotationX, _currentJointRotation[1] + 2);
             bones[2].localRotation = Rotate(Quaternion.identity, RotationX, _currentJointRotation[2] + 3);
             bones[3].localRotation = Rotate(Quaternion.identity, RotationX, _currentJointRotation[3] + 4);
-            bones[4].localRotation = Rotate(Quaternion.identity, RotationX, _currentJointRotation[4] + 5);
+            bones[4].localRotation = Rotate(Quaternion.identity, RotationX, _currentJointRotation[4] + 5);*/
 
             _currentJointRotation[0] = bones[0].localEulerAngles.z;
-            _currentJointRotation[1] = bones[1].localEulerAngles.x;
+            /*_currentJointRotation[1] = bones[1].localEulerAngles.x;
             _currentJointRotation[2] = bones[2].localEulerAngles.x;
             _currentJointRotation[3] = bones[3].localEulerAngles.x;
-            _currentJointRotation[4] = bones[4].localEulerAngles.x;
+            _currentJointRotation[4] = bones[4].localEulerAngles.x;*/
             
         }
 
