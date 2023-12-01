@@ -22,8 +22,8 @@ namespace OctopusController
         
         Vector3[] _tailJointsAxisRotation;
         
-        float[] _tailCurrentJointRotation;
-        float[] _tailVirtualJointRotation;
+        float[] _tailCurrentJointRotations;
+        float[] _tailVirtualJointRotations;
         
         float _tailSize;
         
@@ -112,34 +112,40 @@ namespace OctopusController
             Transform[] bones = _tail.Bones;
             
             _tailJointsAxisRotation = new Vector3[bones.Length];
-            _tailCurrentJointRotation = new float[bones.Length];
-            _tailVirtualJointRotation = new float[bones.Length];
+            _tailCurrentJointRotations = new float[bones.Length];
+            _tailVirtualJointRotations = new float[bones.Length];
             _tailJointsRelativePositions = new Vector3[bones.Length];
+            
+            _tailEndEffector = _tail.EndEffector;
+            
+            InitializeTailValues(bones);
+        }
 
+        private void InitializeTailValues(Transform[] bones)
+        {
             _tailJointsAxisRotation[0] = RotationZ;
-            //_tailCurrentJointRotation[0] = bones[0].localEulerAngles.z;
-            _tailCurrentJointRotation[0] = 0;
+            _tailCurrentJointRotations[0] = bones[0].localEulerAngles.z;
+            /*_tailCurrentJointRotation[0] = 0;
+            _tail.Bones[0].rotation = Quaternion.identity;*/
             
             for (int i = 1; i < bones.Length; i++)
             {
+                /*_tailCurrentJointRotation[i] = 0;
+                _tail.Bones[i].rotation = Quaternion.identity;*/
                 _tailJointsAxisRotation[i] = RotationX;
-                //_tailCurrentJointRotation[i] = bones[i].localEulerAngles.x;
-                _tailCurrentJointRotation[i] = 0;
+                _tailCurrentJointRotations[i] = bones[i].localEulerAngles.x;
                 _tailJointsRelativePositions[i - 1] = bones[i].position - bones[i - 1].position;
-                
             }
-
-            _tailEndEffector = _tail.EndEffector;
-            _tailJointsRelativePositions[_tailJointsRelativePositions.Length - 1] = 
-                _tailEndEffector.position - bones[bones.Length - 1].position;
+            
             _tailCurrentEndEffectorPosition = _tailEndEffector.position;
+            _tailJointsRelativePositions[_tailJointsRelativePositions.Length - 1] = _tailEndEffector.position - bones[bones.Length - 1].position;
 
             for (int i = 0; i < bones.Length; i++)
             {
                 _tailSize += _tailJointsRelativePositions[i].magnitude;
             }
         }
-        
+
         //TODO: implement Gradient Descent method to move tail if necessary
         private void UpdateTail()
         {
@@ -160,7 +166,7 @@ namespace OctopusController
         {
             for (int i = 0; i < _tail.Bones.Length; i++)
             { 
-                GradientDescent(i);
+                _tailVirtualJointRotations[i] = GradientDescent(i);
             }
         }
 
@@ -168,38 +174,37 @@ namespace OctopusController
         {
             for (int i = 0; i < _tail.Bones.Length; i++)
             {
-                _tailCurrentJointRotation[i] -= SPEED * _tailVirtualJointRotation[i];
+                _tailCurrentJointRotations[i] -= SPEED * _tailVirtualJointRotations[i];
             }
             //Debug.Log(_tailCurrentJointRotation[^1]);
         }
 
         private void UpdateJoints()
         {
-            Quaternion rotation = Quaternion.identity;
+            //Quaternion rotation = Quaternion.identity;
+            Quaternion rotation = _tail.Bones[0].transform.rotation;
             for (int i = 0; i < _tail.Bones.Length; i++)
             {
-                //rotation = Quaternion.AngleAxis(_tailCurrentJointRotation[i], _tailJointsAxisRotation[i]);
-                rotation = Rotate(rotation, _tailJointsAxisRotation[i], _tailCurrentJointRotation[i]);
+                rotation = Quaternion.AngleAxis(_tailCurrentJointRotations[i], _tailJointsAxisRotation[i]);
+                //rotation = Rotate(rotation, _tailJointsAxisRotation[i], _tailCurrentJointRotations[i]);
                 _tail.Bones[i].rotation = rotation;
             }
         }
 
-        private void GradientDescent(int index)
+        private float GradientDescent(int index)
         {
+            float currentAngle = _tailCurrentJointRotations[index];
+            
             float currentDistanceBetweenEndEffectorAndTarget = ErrorFunction();
-            
-            float currentAngle = _tailCurrentJointRotation[index];
-            _tailCurrentJointRotation[index] += DELTA;
-            
+            _tailCurrentJointRotations[index] += DELTA;
             float nextDistanceBetweenEndEffectorAndTarget = ErrorFunction();
-
-            _tailCurrentJointRotation[index] = currentAngle;
             
-            float gradient = (currentDistanceBetweenEndEffectorAndTarget - nextDistanceBetweenEndEffectorAndTarget) /
-                             DELTA;
+            float gradient = 
+                (nextDistanceBetweenEndEffectorAndTarget - currentDistanceBetweenEndEffectorAndTarget) / DELTA;
+            
+            _tailCurrentJointRotations[index] = currentAngle;
 
-            _tailVirtualJointRotation[index] = gradient;
-
+            return gradient;
         }
 
         private float ErrorFunction()
@@ -216,9 +221,11 @@ namespace OctopusController
 
             for (int i = 1; i < _tail.Bones.Length; i++)
             {
-                rotation *= Quaternion.AngleAxis(_tailCurrentJointRotation[i - 1], _tailJointsAxisRotation[i - 1]);
+                rotation *= Quaternion.AngleAxis(_tailCurrentJointRotations[i - 1], _tailJointsAxisRotation[i - 1]);
                 _tailCurrentEndEffectorPosition += rotation * _tailJointsRelativePositions[i];
             }
+            
+            Debug.Log(_tailCurrentEndEffectorPosition);
         }
 
 
@@ -288,31 +295,6 @@ namespace OctopusController
             Quaternion result = quaternionRotationZ * quaternionRotationX * quaternionRotationY;
             
             return currentRotation * result;
-        }
-
-        internal Vector3 AxisAnglesFromQuaternion(Quaternion quaternion)
-        {
-            Vector3 axisAngles;
-
-            if (quaternion.w > 1)
-            {
-                quaternion.Normalize();
-            }
-            float angle = (float)(2 * Math.Acos(quaternion.w));
-            double s = Math.Sqrt(1 - quaternion.w * quaternion.w);
-            if (s < 0.001)
-            {
-                axisAngles.x = quaternion.x;
-                axisAngles.y = quaternion.y;
-                axisAngles.z = quaternion.z;
-            }
-            else
-            {
-                axisAngles.x = (float)(quaternion.x / s);
-                axisAngles.y = (float)(quaternion.y / s);
-                axisAngles.z = (float)(quaternion.z / s);
-            }
-            return axisAngles;
         }
     }
 }

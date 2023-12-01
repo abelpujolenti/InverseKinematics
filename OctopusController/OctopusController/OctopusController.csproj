@@ -49,6 +49,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="argaerg.cs" />
     <Compile Include="MyScorpionController.cs" />
     <Compile Include="MyTentacleController.cs" />
     <Compile Include="MyOctopusController.cs" />
