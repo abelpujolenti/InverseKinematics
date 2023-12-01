@@ -34,7 +34,7 @@ namespace OctopusController
             switch (tentacleMode){
                 case TentacleMode.LEG:
 
-                    LoadJoints(2, root);                    
+                    //LoadJoints(2, root);                    
                     break;
                 
                 case TentacleMode.TAIL:

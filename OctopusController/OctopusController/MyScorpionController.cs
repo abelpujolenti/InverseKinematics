@@ -7,36 +7,11 @@ using UnityEngine;
 
 namespace OctopusController
 {
-    public struct MyVec
-    {
-
-        public float x;
-        public float y;
-        public float z;
-    }
-    
-    public struct MyQuat
-    {
-        public float w;
-        public float x;
-        public float y;
-        public float z;
-        public static MyQuat operator* (MyQuat q1, MyQuat q2) 
-        {
-            MyQuat result;
-            result.w = q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z;
-            result.x = q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y;
-            result.y = q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x;
-            result.z = q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w;
-            
-            return result;
-        }
-    }
   
     public class MyScorpionController
     {
         private const float DELTA = 0.05f;
-        private const float STEP = 100;
+        private const float SPEED = 10;
         private const float DISTANCE_TO_TARGET_THRESHOLD = 1; 
         
         //TAIL
@@ -93,7 +68,7 @@ namespace OctopusController
                 _tailTarget = target;
                 return;
             }
-            _startLegsAnimation = false;
+            _startTailAnimation = false;
         }
 
         //TODO: Notifies the start of the walking animation
@@ -142,20 +117,27 @@ namespace OctopusController
             _tailJointsRelativePositions = new Vector3[bones.Length];
 
             _tailJointsAxisRotation[0] = RotationZ;
-            _tailCurrentJointRotation[0] = bones[0].localEulerAngles.z;
+            //_tailCurrentJointRotation[0] = bones[0].localEulerAngles.z;
+            _tailCurrentJointRotation[0] = 0;
             
             for (int i = 1; i < bones.Length; i++)
             {
-                _tailSize += (bones[i].position - bones[i - 1].position).magnitude;
                 _tailJointsAxisRotation[i] = RotationX;
-                _tailCurrentJointRotation[i] = bones[i].localEulerAngles.x;
+                //_tailCurrentJointRotation[i] = bones[i].localEulerAngles.x;
+                _tailCurrentJointRotation[i] = 0;
                 _tailJointsRelativePositions[i - 1] = bones[i].position - bones[i - 1].position;
+                
             }
 
             _tailEndEffector = _tail.EndEffector;
             _tailJointsRelativePositions[_tailJointsRelativePositions.Length - 1] = 
                 _tailEndEffector.position - bones[bones.Length - 1].position;
             _tailCurrentEndEffectorPosition = _tailEndEffector.position;
+
+            for (int i = 0; i < bones.Length; i++)
+            {
+                _tailSize += _tailJointsRelativePositions[i].magnitude;
+            }
         }
         
         //TODO: implement Gradient Descent method to move tail if necessary
@@ -165,7 +147,7 @@ namespace OctopusController
             {
                 if ((_tailTarget.position - _tailCurrentEndEffectorPosition).magnitude <= DISTANCE_TO_TARGET_THRESHOLD)
                 {
-                    continue;   
+                    continue;
                 }
                 
                 CalculateTailJointRotations();
@@ -186,8 +168,9 @@ namespace OctopusController
         {
             for (int i = 0; i < _tail.Bones.Length; i++)
             {
-                _tailCurrentJointRotation[i] -= STEP * _tailVirtualJointRotation[i];
+                _tailCurrentJointRotation[i] -= SPEED * _tailVirtualJointRotation[i];
             }
+            //Debug.Log(_tailCurrentJointRotation[^1]);
         }
 
         private void UpdateJoints()
@@ -195,6 +178,7 @@ namespace OctopusController
             Quaternion rotation = Quaternion.identity;
             for (int i = 0; i < _tail.Bones.Length; i++)
             {
+                //rotation = Quaternion.AngleAxis(_tailCurrentJointRotation[i], _tailJointsAxisRotation[i]);
                 rotation = Rotate(rotation, _tailJointsAxisRotation[i], _tailCurrentJointRotation[i]);
                 _tail.Bones[i].rotation = rotation;
             }
@@ -230,9 +214,9 @@ namespace OctopusController
             _tailCurrentEndEffectorPosition = rootBone.position;
             Quaternion rotation = rootBone.rotation;
 
-            for (int i = 0; i < _tail.Bones.Length - 1; i++)
+            for (int i = 1; i < _tail.Bones.Length; i++)
             {
-                rotation *= Quaternion.AngleAxis(_tailCurrentJointRotation[i], _tailJointsAxisRotation[i]);
+                rotation *= Quaternion.AngleAxis(_tailCurrentJointRotation[i - 1], _tailJointsAxisRotation[i - 1]);
                 _tailCurrentEndEffectorPosition += rotation * _tailJointsRelativePositions[i];
             }
         }
@@ -283,30 +267,6 @@ namespace OctopusController
         internal float Rad2Deg(float angle)
         {
             return angle * (180f / (float)Math.PI);
-        }
-    
-        internal static MyQuat InverseQuaternion(MyQuat quaternion)
-        {
-            MyQuat result;
-
-            result.w = quaternion.w;
-            result.x = -quaternion.x;
-            result.y = -quaternion.y;
-            result.z = -quaternion.z;
-
-            return result;
-        }
-
-        internal static MyQuat NormalizeQuaternion(MyQuat quaternion)
-        {
-            float length = (float)Math.Sqrt(Math.Pow(quaternion.w, 2f) + Math.Pow(quaternion.x, 2f) + Math.Pow(quaternion.y, 2f) + Math.Pow(quaternion.z, 2f));
-
-            quaternion.w /= length;
-            quaternion.x /= length;
-            quaternion.y /= length;
-            quaternion.z /= length;
-
-            return quaternion;
         }
         
         internal Quaternion Rotate(Quaternion currentRotation, Vector3 axis, float angle)
