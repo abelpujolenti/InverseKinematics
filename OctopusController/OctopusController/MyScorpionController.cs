@@ -125,8 +125,8 @@ namespace OctopusController
             
             //// DANGER ZONE
             
-            _tailCurrentJointRotations[0] = bones[0].localEulerAngles.z;
-            //_tail.Bones[0].rotation = Quaternion.identity;
+            //_tailCurrentJointRotations[0] = bones[0].localEulerAngles.z;
+            _tail.Bones[0].rotation = Quaternion.identity;
             Debug.Log(_tailCurrentJointRotations[0]);
             
             /////
@@ -136,8 +136,8 @@ namespace OctopusController
                 
                 /// DANGER ZONE
                 
-                _tailCurrentJointRotations[i] = bones[i].localEulerAngles.x;
-                //_tail.Bones[i].rotation = Quaternion.identity;
+                //_tailCurrentJointRotations[i] = bones[i].localEulerAngles.x;
+                _tail.Bones[i].rotation = Quaternion.identity;
                 Debug.Log(_tailCurrentJointRotations[i]);
                 
                 /////
