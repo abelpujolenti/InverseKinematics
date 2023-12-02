@@ -10,9 +10,16 @@ namespace OctopusController
   
     public class MyScorpionController
     {
+        //TAIL CONSTS
         private const float DELTA = 0.05f;
         private const float SPEED = 10;
-        private const float DISTANCE_TO_TARGET_THRESHOLD = 0.05f; 
+        private const float DISTANCE_TO_TARGET_THRESHOLD = 0.05f;
+        
+        //LEGS CONSTS
+        private const float DISTANCE_FROM_SHOLUDER_TO_CURRENT_BASE_THRESHOLD = 5;
+        private const float DISTANCE_FROM_FOOT_TO_CURRENT_BASE_THRESHOLD = 0.05f;
+        private const float DISTANCE_FROM_SHOULDER_TO_TARGET_THRESHOLD = 0.05f;
+        
         
         //TAIL
         MyTentacleController _tail;
@@ -30,43 +37,75 @@ namespace OctopusController
         Vector3[] _tailJointsRelativePositions;
         
         Vector3 _tailCurrentEndEffectorPosition;
+        
+        bool _startTailAnimation;
 
         //LEGS
+        MyTentacleController[] _legs = new MyTentacleController[6];
+        
         Transform[] _legTargets;
         Transform[] _legFutureBases;
-        MyTentacleController[] _legs = new MyTentacleController[6];
 
-        private bool enter;
-        private bool _startLegsAnimation;
-        private bool _startTailAnimation;
+        float[][] _distanceBetweenJoints;
+        float[] _legsLength;
 
         
-        #region public
+        bool _startLegsAnimation;
+
+
+        //TODO: create the apropiate animations and update the IK from the legs and tail
+        public void UpdateIK()
+        {
+            if (_startLegsAnimation)
+            {
+                UpdateLegs();    
+            }
+            if (!_startTailAnimation)
+            {
+                return;
+            }   
+            //UpdateTail();
+        }
+
+        #region Legs
+        
         public void InitLegs(Transform[] LegRoots,Transform[] LegFutureBases, Transform[] LegTargets)
         {
             _legs = new MyTentacleController[LegRoots.Length];
             _legFutureBases = new Transform[LegFutureBases.Length];
             _legTargets = new Transform[LegTargets.Length];
+            _legsLength = new float[LegTargets.Length];
+            _distanceBetweenJoints = new float[LegTargets.Length][];
             //Legs init
+            
             for (int i = 0; i < LegRoots.Length; i++)
             {
-                _legs[i] = new MyTentacleController();
-                _legs[i].LoadTentacleJoints(LegRoots[i].GetChild(0), TentacleMode.LEG);                
-                _legFutureBases[i] = LegFutureBases[i];
-                _legTargets[i] = LegTargets[i];
+                Debug.Log(i);
+                InitializeLegsValues(LegRoots, LegFutureBases, LegTargets,i);
             }
         }
 
-        //TODO: Check when to start the animation towards target and implement Gradient Descent method to move the joints.
-        public void NotifyTailTarget(Transform target)
+        private void InitializeLegsValues(Transform[] LegRoots , Transform[] LegFutureBases, Transform[] LegTargets, int index)
         {
-            if (Vector3.Distance(_tail.Bones[0].position, target.position) < _tailSize)
+            _legs[index] = new MyTentacleController();
+            _legs[index].LoadTentacleJoints(LegRoots[index].GetChild(0), TentacleMode.LEG);                
+            _legFutureBases[index] = LegFutureBases[index];
+            _legTargets[index] = LegTargets[index];
+
+            Transform[] bones = _legs[index].Bones;
+            
+            _distanceBetweenJoints[index] = new float[bones.Length];
+            
+            for (int i = 0; i < bones.Length - 2; i++)
             {
-                _startTailAnimation = true;
-                _tailTarget = target;
-                return;
+                _distanceBetweenJoints[index][i] = (bones[i].position - bones[i + 1].position).magnitude;
+                _legsLength[index] += _distanceBetweenJoints[index][i];
             }
-            _startTailAnimation = false;
+
+            int bonesLastIndex = bones.Length - 1;
+            
+            _distanceBetweenJoints[index][bonesLastIndex] = (bones[bonesLastIndex].position - _legs[index].EndEffector.position).magnitude;
+            _legsLength[index] += _distanceBetweenJoints[index][bonesLastIndex];
         }
 
         //TODO: Notifies the start of the walking animation
@@ -74,34 +113,95 @@ namespace OctopusController
         {
             _startLegsAnimation = true;
         }
-
-        //TODO: create the apropiate animations and update the IK from the legs and tail
-        public void UpdateIK()
-        {            
-            if (_startLegsAnimation)
-            {
-                UpdateLegs();
-            }
-            if (_startTailAnimation)
-            {
-                UpdateTail();
-            }            
-        }
-        #endregion
         
         //TODO: implement fabrik method to move legs 
         private void UpdateLegs()
         {
-            UpdateLegPos();
+            for (int i = 0; i < 1; i++)
+            {
+                Debug.Log(_legsLength[i]);
+                if ((_legTargets[i].position - _legFutureBases[i].position).magnitude <= _legsLength[i])
+                {
+                    Debug.Log("Short");
+                    return;
+                }
+                UpdateLegPos(_legs[i].Bones, _legs[i].EndEffector, i);
+            }
+        }
+
+        private bool DidFootReachDestination(Transform foot, int index)
+        {
+            return (foot.position - _legFutureBases[index].position).magnitude <
+                   DISTANCE_FROM_FOOT_TO_CURRENT_BASE_THRESHOLD;
+        }
+
+        private bool DidShoulderReachDestination(Transform shoulder, int index)
+        {
+            return (shoulder.position - _legTargets[index].position).magnitude < 
+                   DISTANCE_FROM_SHOULDER_TO_TARGET_THRESHOLD;
         }
 
         //TODO: Implement the leg base animations and logic
-        private void UpdateLegPos()
+        private void UpdateLegPos(Transform[] joints, Transform endEffector, int index)
         {
+            while (!DidFootReachDestination(joints[0], index) || !DidShoulderReachDestination(endEffector, index))
+            {
+                FABRIK(joints, endEffector, index);    
+            }
+            
             //check for the distance to the futureBase, then if it's too far away start moving the leg towards the future base position
             //
         }
+
+        private void FABRIK(Transform[] joints, Transform endEffector, int index)
+        {
+            MoveBonesForwards(joints, endEffector, index);
+            
+            MoveBonesBackwards(joints, endEffector, index);
+        }
+
+        private void MoveBonesForwards(Transform[] joints, Transform endEffector, int index)
+        {
+            joints[0].position = _legFutureBases[index].position;
+
+            Vector3 vectorToNextJoint;
+            Vector3 jointPosition;
+
+            for (int i = 0; i < joints.Length - 2; i++)
+            {
+                jointPosition = joints[i].position;
+                vectorToNextJoint = (joints[i + 1].position - jointPosition).normalized;
+                joints[i + 1].position = jointPosition + vectorToNextJoint * _distanceBetweenJoints[index][i];
+            }
+
+            jointPosition = joints[joints.Length - 1].position;
+            
+            vectorToNextJoint = (endEffector.position - jointPosition).normalized;
+            endEffector.position = jointPosition + vectorToNextJoint *
+                _distanceBetweenJoints[index][_distanceBetweenJoints[index].Length - 1];
+        }
+
+        private void MoveBonesBackwards(Transform[] joints, Transform endEffector, int index)
+        {
+            endEffector.position = _legTargets[index].position;
+            
+            Vector3 jointPosition = joints[joints.Length - 1].position;
+            Vector3 vectorToPreviousJoint = (jointPosition - endEffector.position).normalized;
+            joints[joints.Length - 1].position = endEffector.position + vectorToPreviousJoint *
+                _distanceBetweenJoints[index][_distanceBetweenJoints[index].Length - 1];
+
+            for (int i = joints.Length - 1; i > 1; i--)
+            {
+                jointPosition = joints[i].position;
+                vectorToPreviousJoint = (joints[i - 1].position - jointPosition).normalized;
+                joints[i - 1].position = jointPosition + vectorToPreviousJoint * _distanceBetweenJoints[index][i];
+            }
+
+        }
+
+        #endregion
         
+        #region Tail
         public void InitTail(Transform TailBase)
         {
             _tail = new MyTentacleController();
@@ -118,7 +218,7 @@ namespace OctopusController
             
             InitializeTailValues(bones);
         }
-
+        
         private void InitializeTailValues(Transform[] bones)
         {
             _tailJointsAxisRotation[0] = RotationZ;
@@ -151,6 +251,18 @@ namespace OctopusController
             {
                 _tailSize += _tailJointsRelativePositions[i].magnitude;
             }
+        }
+
+        //TODO: Check when to start the animation towards target and implement Gradient Descent method to move the joints.
+        public void NotifyTailTarget(Transform target)
+        {
+            if (Vector3.Distance(_tail.Bones[0].position, target.position) < _tailSize)
+            {
+                _startTailAnimation = true;
+                _tailTarget = target;
+                return;
+            }
+            _startTailAnimation = false;
         }
 
         //TODO: implement Gradient Descent method to move tail if necessary
@@ -244,7 +356,8 @@ namespace OctopusController
             //_tail.EndEffector.position = _tailCurrentEndEffectorPosition;
         }
 
-
+        #endregion
+        
         private static Vector3 RotationX
         {
             get
