@@ -17,8 +17,9 @@ namespace OctopusController
         
         //LEGS CONSTS
         private const float DISTANCE_FROM_SHOLUDER_TO_CURRENT_BASE_THRESHOLD = 5;
-        private const float DISTANCE_FROM_FOOT_TO_CURRENT_BASE_THRESHOLD = 0.05f;
-        private const float DISTANCE_FROM_SHOULDER_TO_TARGET_THRESHOLD = 0.05f;
+        private const float INITIAL_THRESHOLD_DISTANCE_BETWEEN_FIRST_JOINT_AND_FUTURE_BASE = 0.1f;
+        private const float DISTANCE_FROM_FOOT_TO_CURRENT_BASE_THRESHOLD = 0.001f;
+        private const float DISTANCE_FROM_SHOULDER_TO_TARGET_THRESHOLD = 0.001f;
         
         
         //TAIL
@@ -46,25 +47,27 @@ namespace OctopusController
         Transform[] _legTargets;
         Transform[] _legFutureBases;
 
+        Vector3[] _currentFeetBases;
+
         float[][] _distanceBetweenJoints;
         float[] _legsLength;
-
         
         bool _startLegsAnimation;
 
-
-        //TODO: create the apropiate animations and update the IK from the legs and tail
-        public void UpdateIK()
+        bool active = true;
+         
+        public bool UpdateIK()
         {
             if (_startLegsAnimation)
             {
-                UpdateLegs();    
+                UpdateLegs();
             }
             if (!_startTailAnimation)
             {
-                return;
+                
             }   
             //UpdateTail();
+            return active;
         }
 
         #region Legs
@@ -74,13 +77,13 @@ namespace OctopusController
             _legs = new MyTentacleController[LegRoots.Length];
             _legFutureBases = new Transform[LegFutureBases.Length];
             _legTargets = new Transform[LegTargets.Length];
-            _legsLength = new float[LegTargets.Length];
-            _distanceBetweenJoints = new float[LegTargets.Length][];
+            _legsLength = new float[LegRoots.Length];
+            _distanceBetweenJoints = new float[LegRoots.Length][];
+            _currentFeetBases = new Vector3[LegFutureBases.Length];
             //Legs init
             
             for (int i = 0; i < LegRoots.Length; i++)
             {
-                Debug.Log(i);
                 InitializeLegsValues(LegRoots, LegFutureBases, LegTargets,i);
             }
         }
@@ -91,12 +94,18 @@ namespace OctopusController
             _legs[index].LoadTentacleJoints(LegRoots[index].GetChild(0), TentacleMode.LEG);                
             _legFutureBases[index] = LegFutureBases[index];
             _legTargets[index] = LegTargets[index];
+            _distanceBetweenJoints[index] = new float[_legs[index].Bones.Length];
+
+            //_currentFeetBases[index] = _legFutureBases[index].position;
+            _currentFeetBases[index] = _legs[index].Bones[0].position;
+            
+            Debug.Log(_legs[index].Bones[0].position);
+            Debug.Log(_currentFeetBases[index]);
+            Debug.Log("");
 
             Transform[] bones = _legs[index].Bones;
             
-            _distanceBetweenJoints[index] = new float[bones.Length];
-            
-            for (int i = 0; i < bones.Length - 2; i++)
+            for (int i = 0; i < bones.Length - 1; i++)
             {
                 _distanceBetweenJoints[index][i] = (bones[i].position - bones[i + 1].position).magnitude;
                 _legsLength[index] += _distanceBetweenJoints[index][i];
@@ -117,21 +126,39 @@ namespace OctopusController
         //TODO: implement fabrik method to move legs 
         private void UpdateLegs()
         {
+            Vector3 footPosition;
+            Vector3 futureBasePosition;
+            Vector3 midPoint;
+            
             for (int i = 0; i < 1; i++)
             {
-                Debug.Log(_legsLength[i]);
-                if ((_legTargets[i].position - _legFutureBases[i].position).magnitude <= _legsLength[i])
+
+                footPosition = _legs[i].Bones[0].position;
+                futureBasePosition = _legFutureBases[i].position;
+                midPoint = footPosition + (futureBasePosition - footPosition) / 2;
+                
+                if (_legTargets[i].position.z >= midPoint.z)
                 {
-                    Debug.Log("Short");
                     return;
                 }
+                
+                /*Debug.Log(i);
+                Debug.Log("Targets " + _legTargets[i].position);
+                Debug.Log("Current Bases " + _legs[i].Bones[0].position);
+                Debug.Log("Future Bases" + _legFutureBases[i].position);
+                Debug.Log("Legs Length" + _legsLength[i]);*/
+
+                _currentFeetBases[i] = _legFutureBases[i].position;
                 UpdateLegPos(_legs[i].Bones, _legs[i].EndEffector, i);
+
+                Debug.Log(_legsLength[i]);
+                Debug.Log((_legTargets[i].position - _currentFeetBases[i]).magnitude);
             }
         }
 
         private bool DidFootReachDestination(Transform foot, int index)
         {
-            return (foot.position - _legFutureBases[index].position).magnitude <
+            return (foot.position - _currentFeetBases[index]).magnitude <
                    DISTANCE_FROM_FOOT_TO_CURRENT_BASE_THRESHOLD;
         }
 
@@ -148,55 +175,92 @@ namespace OctopusController
             {
                 FABRIK(joints, endEffector, index);    
             }
-            
+
+            active = false;
+
             //check for the distance to the futureBase, then if it's too far away start moving the leg towards the future base position
             //
         }
 
         private void FABRIK(Transform[] joints, Transform endEffector, int index)
         {
-            MoveBonesForwards(joints, endEffector, index);
+            Vector3[] virtualPositions = new Vector3[joints.Length];
             
-            MoveBonesBackwards(joints, endEffector, index);
+            CalculateBonesForward(joints, endEffector, virtualPositions, index);
+            
+            CalculateBonesBackwards(joints, endEffector, virtualPositions, index);
+            
+            //RotateLegs(joints, endEffector, virtualPositions, index);
         }
 
-        private void MoveBonesForwards(Transform[] joints, Transform endEffector, int index)
+        private void CalculateBonesForward(Transform[] joints, Transform endEffector, Vector3[] virtualPositions, int index)
         {
-            joints[0].position = _legFutureBases[index].position;
+            virtualPositions[0] = _currentFeetBases[index];
 
             Vector3 vectorToNextJoint;
-            Vector3 jointPosition;
+            Vector3 auxJointPosition;
 
-            for (int i = 0; i < joints.Length - 2; i++)
+            for (int i = 0; i < joints.Length - 1; i++)
             {
-                jointPosition = joints[i].position;
-                vectorToNextJoint = (joints[i + 1].position - jointPosition).normalized;
-                joints[i + 1].position = jointPosition + vectorToNextJoint * _distanceBetweenJoints[index][i];
+                auxJointPosition = virtualPositions[i];
+                vectorToNextJoint = (joints[i + 1].position - auxJointPosition).normalized;
+                virtualPositions[i + 1] = auxJointPosition + vectorToNextJoint * _distanceBetweenJoints[index][i];
             }
 
-            jointPosition = joints[joints.Length - 1].position;
-            
-            vectorToNextJoint = (endEffector.position - jointPosition).normalized;
-            endEffector.position = jointPosition + vectorToNextJoint *
+            auxJointPosition = virtualPositions[virtualPositions.Length - 1];
+            vectorToNextJoint = (endEffector.position - auxJointPosition).normalized;
+            Vector3 auxEndEffector = auxJointPosition + vectorToNextJoint *
                 _distanceBetweenJoints[index][_distanceBetweenJoints[index].Length - 1];
+            
+            MoveBones(joints, endEffector, virtualPositions, auxEndEffector);
         }
 
-        private void MoveBonesBackwards(Transform[] joints, Transform endEffector, int index)
+        private void CalculateBonesBackwards(Transform[] joints, Transform endEffector, Vector3[] virtualPositions, int index)
         {
             endEffector.position = _legTargets[index].position;
             
-            Vector3 jointPosition = joints[joints.Length - 1].position;
-            Vector3 vectorToPreviousJoint = (jointPosition - endEffector.position).normalized;
-            joints[joints.Length - 1].position = endEffector.position + vectorToPreviousJoint *
+            Vector3 vectorToPreviousJoint = (joints[joints.Length - 1].position - endEffector.position).normalized;
+            virtualPositions[virtualPositions.Length - 1] = endEffector.position + vectorToPreviousJoint * 
                 _distanceBetweenJoints[index][_distanceBetweenJoints[index].Length - 1];
 
-            for (int i = joints.Length - 1; i > 1; i--)
+            Vector3 auxJointPosition;
+
+            for (int i = joints.Length - 1; i > 0; i--)
             {
-                jointPosition = joints[i].position;
-                vectorToPreviousJoint = (joints[i - 1].position - jointPosition).normalized;
-                joints[i - 1].position = jointPosition + vectorToPreviousJoint * _distanceBetweenJoints[index][i];
+                auxJointPosition = virtualPositions[i];
+                vectorToPreviousJoint = (joints[i - 1].position - auxJointPosition).normalized;
+                virtualPositions[i - 1] = auxJointPosition + vectorToPreviousJoint * _distanceBetweenJoints[index][i - 1];
             }
 
+            MoveBones(joints, endEffector, virtualPositions, _legTargets[index].position);
+        }
+
+        private void MoveBones(Transform[] joints, Transform endEffector, Vector3[] positions, Vector3 newEndEffectorPosition)
+        {
+            for (int i = 0; i < joints.Length; i++)
+            {
+                joints[i].position = positions[i];
+            }
+
+            endEffector.position = newEndEffectorPosition;
+        }
+
+        private void RotateLegs(Transform[] joints, Transform endEffector, Vector3[] virtualPositions, int index)
+        {
+            Vector3 currentJointPosition;
+            Vector3 nextJointPosition;
+            
+            for (int i = 0; i < joints.Length - 1; i++)
+            {
+                currentJointPosition = joints[i].position;
+                nextJointPosition = joints[i + 1].position;
+                joints[i].rotation *= Quaternion.FromToRotation(currentJointPosition, nextJointPosition);
+                joints[i + 1].position = virtualPositions[i + 1];
+            }
+
+            currentJointPosition = joints[joints.Length - 1].position;
+            joints[joints.Length - 1].rotation *= Quaternion.FromToRotation(currentJointPosition, endEffector.position);
+            endEffector.position = _legTargets[index].position;
         }
 
         #endregion
