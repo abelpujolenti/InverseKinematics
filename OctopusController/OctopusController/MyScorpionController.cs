@@ -58,6 +58,8 @@ namespace OctopusController
 
         bool active = true;
 
+        int loops = 0;
+
         public bool UpdateIK()
         {
             if (_startLegsAnimation)
@@ -101,9 +103,9 @@ namespace OctopusController
             //_currentFeetBases[index] = _legFutureBases[index].position;
             _currentFeetBases[index] = _legs[index].Bones[0].position;
 
-            Debug.Log(_legs[index].Bones[0].position);
+            /*Debug.Log(_legs[index].Bones[0].position);
             Debug.Log(_currentFeetBases[index]);
-            Debug.Log("");
+            Debug.Log("");*/
 
             Transform[] bones = _legs[index].Bones;
 
@@ -134,15 +136,19 @@ namespace OctopusController
 
             for (int i = 0; i < _legs.Length; i++)
             {
+                if (i != 0)
+                {
+                    continue;
+                }
 
                 footPosition = _legs[i].Bones[0].position;
                 futureBasePosition = _legFutureBases[i].position;
                 midPoint = footPosition + (futureBasePosition - footPosition) / 2;
 
-                if (_legTargets[i].position.z >= midPoint.z)
+                /*if (_legTargets[i].position.z >= midPoint.z)
                 {
-                    return;
-                }
+                    continue;
+                }*/
 
                 /*Debug.Log(i);
                 Debug.Log("Targets " + _legTargets[i].position);
@@ -179,8 +185,15 @@ namespace OctopusController
                 }
                 break;
             }
+            
+            //FABRIK(joints, endEffector, index);
 
-            active = false;
+            loops++;
+            if (loops >= 1)
+            {
+                active = false;    
+            }
+            
 
             //check for the distance to the futureBase, then if it's too far away start moving the leg towards the future base position
             //
@@ -188,17 +201,16 @@ namespace OctopusController
 
         private void FABRIK(Transform[] joints, Transform endEffector, int index)
         {
-            Vector3[] virtualPositions = new Vector3[joints.Length];
+            Vector3[] virtualPositions = new Vector3[joints.Length + 1];
 
-            CalculateBonesForward(joints, endEffector, virtualPositions, index);
+            CalculateBonesForward(joints, virtualPositions, index);
 
-            CalculateBonesBackwards(joints, endEffector, virtualPositions, index);
+            CalculateBonesBackwards(endEffector, virtualPositions, index);
 
             MoveBones(joints, endEffector, virtualPositions, _legTargets[index].position);
-
         }
 
-        private void CalculateBonesForward(Transform[] joints, Transform endEffector, Vector3[] virtualPositions, int index)
+        private void CalculateBonesForward(Transform[] joints, Vector3[] virtualPositions, int index)
         {
             virtualPositions[0] = _currentFeetBases[index];
 
@@ -213,14 +225,13 @@ namespace OctopusController
             }
         }
 
-        private void CalculateBonesBackwards(Transform[] joints, Transform endEffector, Vector3[] virtualPositions, int index)
+        private void CalculateBonesBackwards(Transform endEffector, Vector3[] virtualPositions, int index)
         {
             endEffector.position = _legTargets[index].position;
 
-            Vector3 vectorToPreviousJoint = (virtualPositions[virtualPositions.Length - 1] - endEffector.position).normalized;
-            virtualPositions[virtualPositions.Length - 1] = endEffector.position + vectorToPreviousJoint *
-                _distanceBetweenJoints[index][_distanceBetweenJoints[index].Length - 1];
+            virtualPositions[virtualPositions.Length - 1] = endEffector.position;
 
+            Vector3 vectorToPreviousJoint;
             Vector3 auxJointPosition;
 
             for (int i = virtualPositions.Length - 1; i > 0; i--)
@@ -233,35 +244,50 @@ namespace OctopusController
 
         private void MoveBones(Transform[] joints, Transform endEffector, Vector3[] virtualPositions, Vector3 newEndEffectorPosition)
         {
-            /*for (int i = 0; i < virtualPositions.Length - 1; i++)
+            Quaternion[] virtualRotations = new Quaternion[joints.Length];
+            
+            for (int i = 0; i < virtualPositions.Length - 1; i++)
             {
-                Debug.DrawLine(virtualPositions[i], virtualPositions[i + 1], Color.white, 100);
+                Debug.DrawLine(virtualPositions[i], virtualPositions[i + 1], Color.white, 1000);
             }
-            Debug.DrawLine(virtualPositions[virtualPositions.Length - 1], newEndEffectorPosition, Color.white, 100);*/
+            Debug.DrawLine(virtualPositions[virtualPositions.Length - 1], newEndEffectorPosition, Color.white, 1000);
+
+            /*for (int i = 0; i < joints.Length; i++)
+            {
+                joints[i].position = virtualPositions[i];
+            }*/
 
             joints[0].position = virtualPositions[0];
 
-            Vector3 vectorBetweenVirualPositions;
+            Vector3 vectorBetweenVirtualPositions;
             Vector3 crossVector;
-            float cosinus;
+            float cosine;
             float angle;
 
-            for (int i = 0; i < joints.Length - 1; i++)
+            for (int i = 0; i < joints.Length; i++)
             {
-                vectorBetweenVirualPositions = virtualPositions[i + 1] - virtualPositions[i];
-                cosinus = Vector3.Dot(joints[i].up, vectorBetweenVirualPositions);
-                angle = Mathf.Acos(cosinus);
-                crossVector = Vector3.Cross(joints[i].up, vectorBetweenVirualPositions).normalized;
-                joints[i].rotation = Rotate(joints[i].rotation, crossVector, angle);
+                vectorBetweenVirtualPositions = (virtualPositions[i + 1] - virtualPositions[i]).normalized;
+                cosine = Vector3.Dot(joints[i].up, vectorBetweenVirtualPositions);   
+                angle = Rad2Deg(Mathf.Acos(cosine));
+                crossVector = Vector3.Cross(joints[i].up, vectorBetweenVirtualPositions).normalized;
+
+                if (i == 2)
+                {
+                    Debug.Log(angle);
+                    Debug.DrawRay(virtualPositions[i], joints[i].up, Color.green, 1000);
+                    Debug.DrawRay(virtualPositions[i], vectorBetweenVirtualPositions, Color.red, 1000);
+                    Debug.DrawRay(virtualPositions[i], crossVector, Color.cyan, 1000);    
+                }
+                
+                virtualRotations[i] = Rotate(joints[i].rotation, crossVector, angle);
             }
 
-            vectorBetweenVirualPositions = newEndEffectorPosition - virtualPositions[virtualPositions.Length - 1];
-            cosinus = Vector3.Dot(joints[joints.Length - 1].up, vectorBetweenVirualPositions);
-            angle = Mathf.Acos(cosinus);
-            crossVector = Vector3.Cross(joints[joints.Length - 1].up, vectorBetweenVirualPositions).normalized;
-            joints[joints.Length - 1].rotation = Rotate(joints[joints.Length - 1].rotation, crossVector, angle);
+            for (int i = 0; i < joints.Length; i++)
+            {
+                joints[i].rotation = virtualRotations[i];
+            }
 
-            endEffector.position = newEndEffectorPosition;
+            endEffector.position = virtualPositions[virtualPositions.Length - 1];
         }
 
         #endregion
