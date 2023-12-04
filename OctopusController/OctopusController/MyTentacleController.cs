@@ -8,9 +8,7 @@ using UnityEngine;
 
 
 namespace OctopusController
-{
-
-    
+{    
     internal class MyTentacleController
 
     //MAINTAIN THIS CLASS AS INTERNAL
@@ -34,12 +32,12 @@ namespace OctopusController
             switch (tentacleMode){
                 case TentacleMode.LEG:
 
-                    //LoadJoints(2, root);                    
+                    LoadJoints(2, root);                    
                     break;
                 
                 case TentacleMode.TAIL:
 
-                    LoadJoints(4, root);
+                    //LoadJoints(4, root);
                     break;
                 
                 case TentacleMode.TENTACLE:
