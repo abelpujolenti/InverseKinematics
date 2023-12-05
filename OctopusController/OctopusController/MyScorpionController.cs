@@ -62,6 +62,11 @@ namespace OctopusController
 
         public bool UpdateIK()
         {
+            /*if (!active)
+            {
+                return active;
+            }*/
+
             if (_startLegsAnimation)
             {
                 UpdateLegs();
@@ -136,9 +141,9 @@ namespace OctopusController
 
             for (int i = 0; i < _legs.Length; i++)
             {
-                if (i != 0)
+                if (i != 3)
                 {
-                    continue;
+                    //continue;
                 }
 
                 footPosition = _legs[i].Bones[0].position;
@@ -185,15 +190,16 @@ namespace OctopusController
                 }
                 break;
             }
-            
+
             //FABRIK(joints, endEffector, index);
 
             loops++;
+
             if (loops >= 1)
             {
-                active = false;    
+                active = false;
             }
-            
+
 
             //check for the distance to the futureBase, then if it's too far away start moving the leg towards the future base position
             //
@@ -244,13 +250,13 @@ namespace OctopusController
 
         private void MoveBones(Transform[] joints, Transform endEffector, Vector3[] virtualPositions, Vector3 newEndEffectorPosition)
         {
-            Quaternion[] virtualRotations = new Quaternion[joints.Length];
-            
-            for (int i = 0; i < virtualPositions.Length - 1; i++)
+            //Vector3[] virtualRotations = new Vector3[joints.Length];
+
+            /*for (int i = 0; i < virtualPositions.Length - 1; i++)
             {
-                Debug.DrawLine(virtualPositions[i], virtualPositions[i + 1], Color.white, 1000);
+                Debug.DrawLine(virtualPositions[i], virtualPositions[i + 1], Color.red, 5);
             }
-            Debug.DrawLine(virtualPositions[virtualPositions.Length - 1], newEndEffectorPosition, Color.white, 1000);
+            Debug.DrawLine(virtualPositions[virtualPositions.Length - 1], newEndEffectorPosition, Color.red, 5);*/
 
             /*for (int i = 0; i < joints.Length; i++)
             {
@@ -259,32 +265,62 @@ namespace OctopusController
 
             joints[0].position = virtualPositions[0];
 
+            Vector3 vectorBetweenJoints;
             Vector3 vectorBetweenVirtualPositions;
+            Vector3 vectorBetweenVirtualPositionsNormalized;
             Vector3 crossVector;
             float cosine;
             float angle;
+            Quaternion rotation;
 
-            for (int i = 0; i < joints.Length; i++)
+            for (int i = 0; i < joints.Length - 1; i++)
             {
-                vectorBetweenVirtualPositions = (virtualPositions[i + 1] - virtualPositions[i]).normalized;
-                cosine = Vector3.Dot(joints[i].up, vectorBetweenVirtualPositions);   
+                vectorBetweenJoints = (joints[i + 1].position - joints[i].position).normalized;
+                vectorBetweenVirtualPositions = virtualPositions[i + 1] - virtualPositions[i];
+                vectorBetweenVirtualPositionsNormalized = vectorBetweenVirtualPositions.normalized;
+                cosine = Vector3.Dot(vectorBetweenJoints, vectorBetweenVirtualPositionsNormalized);
                 angle = Rad2Deg(Mathf.Acos(cosine));
-                crossVector = Vector3.Cross(joints[i].up, vectorBetweenVirtualPositions).normalized;
+                crossVector = Vector3.Cross(vectorBetweenJoints, vectorBetweenVirtualPositionsNormalized).normalized;
 
-                if (i == 2)
+                //if (i == 2)
                 {
-                    Debug.Log(angle);
+                    /*Debug.Log(angle);
                     Debug.DrawRay(virtualPositions[i], joints[i].up, Color.green, 1000);
-                    Debug.DrawRay(virtualPositions[i], vectorBetweenVirtualPositions, Color.red, 1000);
-                    Debug.DrawRay(virtualPositions[i], crossVector, Color.cyan, 1000);    
+                    Debug.DrawRay(virtualPositions[i], vectorBetweenVirtualPositionsNormalized, Color.red, 1000);
+                    Debug.DrawRay(virtualPositions[i], crossVector, Color.cyan, 1000);*/
                 }
-                
-                virtualRotations[i] = Rotate(joints[i].rotation, crossVector, angle);
+
+                rotation = Quaternion.AngleAxis(angle, crossVector) * joints[i].rotation;
+
+                joints[i].rotation = Quaternion.AngleAxis(angle, crossVector) * joints[i].rotation;
+                //virtualPositions[i + 1] = virtualPositions[i] + rotation * vectorBetweenVirtualPositions;
             }
 
+            /*vectorBetweenJoints = (newEndEffectorPosition - joints[joints.Length - 1].position).normalized;
+            vectorBetweenVirtualPositions = newEndEffectorPosition - virtualPositions[virtualPositions.Length - 1];
+            vectorBetweenVirtualPositionsNormalized = vectorBetweenVirtualPositions.normalized;
+            cosine = Vector3.Dot(vectorBetweenJoints, vectorBetweenVirtualPositionsNormalized);
+            angle = Rad2Deg(Mathf.Acos(cosine));
+            crossVector = Vector3.Cross(vectorBetweenJoints, vectorBetweenVirtualPositionsNormalized).normalized;
+
+            //if (i == 2)
+            {
+                Debug.Log(angle);
+                Debug.DrawRay(virtualPositions[i], joints[i].up, Color.green, 1000);
+                Debug.DrawRay(virtualPositions[i], vectorBetweenVirtualPositionsNormalized, Color.red, 1000);
+                Debug.DrawRay(virtualPositions[i], crossVector, Color.cyan, 1000);
+            }
+
+            rotation = Quaternion.AngleAxis(angle, crossVector) * joints[joints.Length - 1].rotation;
+
+            joints[joints.Length - 1].rotation = Quaternion.AngleAxis(angle, crossVector) * joints[joints.Length - 1].rotation;
+            //virtualPositions[i + 1] = virtualPositions[i] + rotation * vectorBetweenVirtualPositions;*/
+
+
+
             for (int i = 0; i < joints.Length; i++)
             {
-                joints[i].rotation = virtualRotations[i];
+                joints[i].position = virtualPositions[i];
             }
 
             endEffector.position = virtualPositions[virtualPositions.Length - 1];
@@ -462,27 +498,6 @@ namespace OctopusController
                 vector.z = 1;
                 return vector;
             }
-        }
-
-        internal Quaternion Rotate(Quaternion currentRotation, Vector3 axis, float angle)
-        {
-            angle /= 2;
-
-            Quaternion quaternionRotationZ = Quaternion.identity;
-            quaternionRotationZ.w = (float)Math.Cos(Deg2Rad(angle) * axis.z);
-            quaternionRotationZ.z = (float)Math.Sin(Deg2Rad(angle) * axis.z);
-
-            Quaternion quaternionRotationY = Quaternion.identity;
-            quaternionRotationY.w = (float)Math.Cos(Deg2Rad(angle) * axis.y);
-            quaternionRotationY.y = (float)Math.Sin(Deg2Rad(angle) * axis.y);
-
-            Quaternion quaternionRotationX = Quaternion.identity;
-            quaternionRotationX.w = (float)Math.Cos(Deg2Rad(angle) * axis.x);
-            quaternionRotationX.x = (float)Math.Sin(Deg2Rad(angle) * axis.x);
-
-            Quaternion result = quaternionRotationZ * quaternionRotationX * quaternionRotationY;
-
-            return currentRotation * result;
         }
     }
 }
