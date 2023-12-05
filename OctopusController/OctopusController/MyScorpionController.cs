@@ -60,12 +60,12 @@ namespace OctopusController
 
         int loops = 0;
 
-        public bool UpdateIK()
+        public void UpdateIK()
         {
-            /*if (!active)
+            if (!active)
             {
-                return active;
-            }*/
+                return;
+            }
 
             if (_startLegsAnimation)
             {
@@ -73,10 +73,10 @@ namespace OctopusController
             }
             if (!_startTailAnimation)
             {
-                return active;
+                return;
             }
             UpdateTail();
-            return active;
+            return;
         }
 
         #region Legs
@@ -141,7 +141,7 @@ namespace OctopusController
 
             for (int i = 0; i < _legs.Length; i++)
             {
-                if (i != 3)
+                if (i != 1 && i != 0)
                 {
                     //continue;
                 }
@@ -197,7 +197,7 @@ namespace OctopusController
 
             if (loops >= 1)
             {
-                active = false;
+                //active = false;
             }
 
 
@@ -211,9 +211,9 @@ namespace OctopusController
 
             CalculateBonesForward(joints, virtualPositions, index);
 
-            CalculateBonesBackwards(endEffector, virtualPositions, index);
+            CalculateBonesBackwards(virtualPositions, index);
 
-            MoveBones(joints, endEffector, virtualPositions, _legTargets[index].position);
+            MoveBones(joints, endEffector, virtualPositions);
         }
 
         private void CalculateBonesForward(Transform[] joints, Vector3[] virtualPositions, int index)
@@ -231,11 +231,9 @@ namespace OctopusController
             }
         }
 
-        private void CalculateBonesBackwards(Transform endEffector, Vector3[] virtualPositions, int index)
+        private void CalculateBonesBackwards(Vector3[] virtualPositions, int index)
         {
-            endEffector.position = _legTargets[index].position;
-
-            virtualPositions[virtualPositions.Length - 1] = endEffector.position;
+            virtualPositions[virtualPositions.Length - 1] = _legTargets[index].position;
 
             Vector3 vectorToPreviousJoint;
             Vector3 auxJointPosition;
@@ -248,15 +246,13 @@ namespace OctopusController
             }
         }
 
-        private void MoveBones(Transform[] joints, Transform endEffector, Vector3[] virtualPositions, Vector3 newEndEffectorPosition)
+        private void MoveBones(Transform[] joints, Transform endEffector, Vector3[] virtualPositions)
         {
-            //Vector3[] virtualRotations = new Vector3[joints.Length];
-
             /*for (int i = 0; i < virtualPositions.Length - 1; i++)
             {
-                Debug.DrawLine(virtualPositions[i], virtualPositions[i + 1], Color.red, 5);
+                Debug.DrawLine(virtualPositions[i], virtualPositions[i + 1], Color.white, 5);
             }
-            Debug.DrawLine(virtualPositions[virtualPositions.Length - 1], newEndEffectorPosition, Color.red, 5);*/
+            Debug.DrawLine(virtualPositions[virtualPositions.Length - 1], virtualPositions[virtualPositions.Length - 1], Color.white, 5);*/
 
             /*for (int i = 0; i < joints.Length; i++)
             {
@@ -269,61 +265,58 @@ namespace OctopusController
             Vector3 vectorBetweenVirtualPositions;
             Vector3 vectorBetweenVirtualPositionsNormalized;
             Vector3 crossVector;
+            
             float cosine;
             float angle;
-            Quaternion rotation;
+
+            int lastJointsIndex = joints.Length - 1;
+            int lastVirtualPositionsIndex = virtualPositions.Length - 1;
 
             for (int i = 0; i < joints.Length - 1; i++)
             {
                 vectorBetweenJoints = (joints[i + 1].position - joints[i].position).normalized;
                 vectorBetweenVirtualPositions = virtualPositions[i + 1] - virtualPositions[i];
                 vectorBetweenVirtualPositionsNormalized = vectorBetweenVirtualPositions.normalized;
+                //cosine = Vector3.Dot(joints[i].up, vectorBetweenVirtualPositionsNormalized);
                 cosine = Vector3.Dot(vectorBetweenJoints, vectorBetweenVirtualPositionsNormalized);
                 angle = Rad2Deg(Mathf.Acos(cosine));
+                //crossVector = Vector3.Cross(joints[i].up, vectorBetweenVirtualPositionsNormalized).normalized;
                 crossVector = Vector3.Cross(vectorBetweenJoints, vectorBetweenVirtualPositionsNormalized).normalized;
 
-                //if (i == 2)
+                //if (i == 0)
                 {
-                    /*Debug.Log(angle);
-                    Debug.DrawRay(virtualPositions[i], joints[i].up, Color.green, 1000);
+                    /*Debug.DrawRay(virtualPositions[i], joints[i].up, Color.green, 1000);
                     Debug.DrawRay(virtualPositions[i], vectorBetweenVirtualPositionsNormalized, Color.red, 1000);
                     Debug.DrawRay(virtualPositions[i], crossVector, Color.cyan, 1000);*/
                 }
 
-                rotation = Quaternion.AngleAxis(angle, crossVector) * joints[i].rotation;
-
                 joints[i].rotation = Quaternion.AngleAxis(angle, crossVector) * joints[i].rotation;
                 //virtualPositions[i + 1] = virtualPositions[i] + rotation * vectorBetweenVirtualPositions;
+                //virtualRotations[i] = Quaternion.AngleAxis(angle, crossVector) * joints[i].rotation;
             }
 
-            /*vectorBetweenJoints = (newEndEffectorPosition - joints[joints.Length - 1].position).normalized;
-            vectorBetweenVirtualPositions = newEndEffectorPosition - virtualPositions[virtualPositions.Length - 1];
+            vectorBetweenVirtualPositions = virtualPositions[lastVirtualPositionsIndex] - virtualPositions[lastVirtualPositionsIndex - 1];
             vectorBetweenVirtualPositionsNormalized = vectorBetweenVirtualPositions.normalized;
-            cosine = Vector3.Dot(vectorBetweenJoints, vectorBetweenVirtualPositionsNormalized);
+            cosine = Vector3.Dot(joints[lastJointsIndex].up, vectorBetweenVirtualPositionsNormalized);
             angle = Rad2Deg(Mathf.Acos(cosine));
-            crossVector = Vector3.Cross(vectorBetweenJoints, vectorBetweenVirtualPositionsNormalized).normalized;
-
-            //if (i == 2)
-            {
-                Debug.Log(angle);
-                Debug.DrawRay(virtualPositions[i], joints[i].up, Color.green, 1000);
-                Debug.DrawRay(virtualPositions[i], vectorBetweenVirtualPositionsNormalized, Color.red, 1000);
-                Debug.DrawRay(virtualPositions[i], crossVector, Color.cyan, 1000);
-            }
-
-            rotation = Quaternion.AngleAxis(angle, crossVector) * joints[joints.Length - 1].rotation;
+            crossVector = Vector3.Cross(joints[lastJointsIndex].up, vectorBetweenVirtualPositionsNormalized).normalized;
+            
+            /*Debug.Log(angle);
+            Debug.DrawRay(virtualPositions[virtualPositions.Length - 2], joints[joints.Length - 1].up, Color.green, 1000);
+            Debug.DrawRay(virtualPositions[virtualPositions.Length - 2], vectorBetweenVirtualPositionsNormalized, Color.red, 1000);
+            Debug.DrawRay(virtualPositions[virtualPositions.Length - 2], crossVector, Color.cyan, 1000);*/
 
             joints[joints.Length - 1].rotation = Quaternion.AngleAxis(angle, crossVector) * joints[joints.Length - 1].rotation;
             //virtualPositions[i + 1] = virtualPositions[i] + rotation * vectorBetweenVirtualPositions;*/
-
-
+            //virtualRotations[virtualRotations.Length - 1] = Quaternion.AngleAxis(angle, crossVector) * joints[joints.Length - 1].rotation;
 
             for (int i = 0; i < joints.Length; i++)
             {
-                joints[i].position = virtualPositions[i];
+                //joints[i].position = virtualPositions[i];
+                //joints[i].rotation = virtualRotations[i];
             }
 
-            endEffector.position = virtualPositions[virtualPositions.Length - 1];
+            //endEffector.position = virtualPositions[virtualPositions.Length - 1];
         }
 
         #endregion
