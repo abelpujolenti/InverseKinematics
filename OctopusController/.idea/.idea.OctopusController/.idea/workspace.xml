@@ -5,7 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="8e48e54f-f731-4d07-9c40-0a59df91ca29" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.OctopusController/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.OctopusController/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/OctopusController/MyScorpionController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/OctopusController/MyScorpionController.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/OctopusController/OctopusController.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/OctopusController/OctopusController.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/OctopusController/bin/Debug/OctopusController.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/OctopusController/bin/Debug/OctopusController.pdb" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -74,6 +76,7 @@
       <workItem from="1701559175041" duration="69000" />
       <workItem from="1701604706167" duration="3620000" />
       <workItem from="1701786870830" duration="601000" />
+      <workItem from="1701882996306" duration="204000" />
     </task>
     <servers />
   </component>
