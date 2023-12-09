@@ -55,11 +55,8 @@ namespace OctopusController
             for (int i = 0; i < jointsLength; i++)
             {
                 transformList.Add(transformList[i].GetChild(childIndex));
-                Debug.Log(transformList[i]);
             }
-            Debug.Log(transformList[transformList.Count - 1]);
             _endEffectorSphere = transformList[transformList.Count - 1].GetChild(childIndex);
-            Debug.Log(_endEffectorSphere);
                     
             _bones = transformList.ToArray();
         }
