@@ -18,10 +18,12 @@ namespace OctopusController
         private const float DISTANCE_TO_TARGET_THRESHOLD = 0.05f;
 
         //LEGS CONSTS
-        private const float DISTANCE_FROM_SHOLUDER_TO_CURRENT_BASE_THRESHOLD = 5;
-        private const float INITIAL_THRESHOLD_DISTANCE_BETWEEN_FIRST_JOINT_AND_FUTURE_BASE = 0.1f;
+        private const float MAXIMUM_DISTANCE_BETWEEN_CURRENT_BASE_TO_FUTURE_BASE_THRESHOLD = 0.2f;
+        private const float MINIMUM_DISTANCE_BETWEEN_CURRENT_BASE_TO_FUTURE_BASE_THRESHOLD = 0.01f;
         private const float DISTANCE_FROM_FOOT_TO_CURRENT_BASE_THRESHOLD = 0.001f;
         private const float DISTANCE_FROM_SHOULDER_TO_TARGET_THRESHOLD = 0.001f;
+        private const float TIME_TO_MOVE_LEG = 0.2f;
+        private const float MAXIMUM_HEIGHT_TO_FOOT = 0.3f;
         private const int MAXIMUM_ITERATIONS_FABRIK = 20;
 
 
@@ -51,10 +53,15 @@ namespace OctopusController
         Transform[] _legFutureBases;
 
         Vector3[] _currentFeetBases;
+        Vector3[] _lastFeetBases;
 
         float[][] _distanceBetweenJoints;
         float[] _legsLength;
+        float[] _legsPositionZLerp;
+        float[] _legsPositionYLerp;
 
+        bool[] _legsReachCeil;
+        bool[] _moveLegs;
         bool _startLegsAnimation;
 
         bool active = true;
@@ -88,6 +95,11 @@ namespace OctopusController
             _legsLength = new float[LegRoots.Length];
             _distanceBetweenJoints = new float[LegRoots.Length][];
             _currentFeetBases = new Vector3[LegFutureBases.Length];
+            _lastFeetBases = new Vector3[LegFutureBases.Length];
+            _legsPositionZLerp = new float[LegRoots.Length];
+            _legsPositionYLerp = new float[LegRoots.Length];
+            _legsReachCeil = new bool[LegRoots.Length];
+            _moveLegs = new bool[LegRoots.Length];
             //Legs init
 
             for (int i = 0; i < LegRoots.Length; i++)
@@ -108,13 +120,9 @@ namespace OctopusController
             _legFutureBases[index] = LegFutureBases[index];
             _legTargets[index] = LegTargets[index];
             _distanceBetweenJoints[index] = new float[_legs[index].Bones.Length];
-
-            //_currentFeetBases[index] = _legFutureBases[index].position;
+            _legsPositionZLerp[index] = 0;
+            _legsPositionYLerp[index] = 0;
             _currentFeetBases[index] = _legs[index].Bones[0].position;
-
-            /*Debug.Log(_legs[index].Bones[0].position);
-            Debug.Log(_currentFeetBases[index]);
-            Debug.Log("");*/
 
             Transform[] bones = _legs[index].Bones;
 
@@ -148,33 +156,64 @@ namespace OctopusController
         //TODO: implement fabrik method to move legs 
         private void UpdateLegs()
         {
-            Vector3 footPosition;
-            Vector3 futureBasePosition;
-            Vector3 midPoint;
-
+            int legToCheckMovement;
+            int auxInt;
+            
             for (int i = 0; i < _legs.Length; i++)
             {
-                if (i != 0 && i != 3)
+                auxInt = i % 2;
+                if (auxInt == 0)
                 {
-                    //continue;
+                    auxInt = 1;
+                }
+                else
+                {
+                    auxInt = -1;
                 }
 
-                footPosition = _legs[i].Bones[0].position;
-                futureBasePosition = _legFutureBases[i].position;
-                midPoint = footPosition + (futureBasePosition - footPosition) / 2;
+                legToCheckMovement = i + auxInt;
 
-                /*if (_legTargets[i].position.z >= midPoint.z)
+                if (!_moveLegs[legToCheckMovement])
                 {
-                    continue;
-                }*/
+                    if ((_legFutureBases[i].position - _currentFeetBases[i]).magnitude > MAXIMUM_DISTANCE_BETWEEN_CURRENT_BASE_TO_FUTURE_BASE_THRESHOLD && 
+                        !_moveLegs[i])
+                    {
+                        _lastFeetBases[i] = _currentFeetBases[i];
+                        _moveLegs[i] = true;    
+                    }
+                
+                    if (_moveLegs[i])
+                    {
+                        _legsPositionZLerp[i] += Time.deltaTime;
 
-                /*Debug.Log(i);
-                Debug.Log("Targets " + _legTargets[i].position);
-                Debug.Log("Current Bases " + _legs[i].Bones[0].position);
-                Debug.Log("Future Bases" + _legFutureBases[i].position);
-                Debug.Log("Legs Length" + _legsLength[i]);*/
+                        if (!_legsReachCeil[i])
+                        {
+                            _legsReachCeil[i] = _legsPositionYLerp[i] >= TIME_TO_MOVE_LEG;
+                        }
 
-                _currentFeetBases[i] = _legFutureBases[i].position;
+                        if (_legsReachCeil[i])
+                        {
+                            _legsPositionYLerp[i] -= Time.deltaTime * 2;   
+                        }
+                        else
+                        {
+                            _legsPositionYLerp[i] += Time.deltaTime * 2;
+                        }
+                    
+                        _currentFeetBases[i].z = Mathf.Lerp(_lastFeetBases[i].z, _legFutureBases[i].position.z, _legsPositionZLerp[i] / TIME_TO_MOVE_LEG);
+                        _currentFeetBases[i].y = Mathf.Lerp(_lastFeetBases[i].y,  _lastFeetBases[i].y + MAXIMUM_HEIGHT_TO_FOOT, _legsPositionYLerp[i] / TIME_TO_MOVE_LEG);
+
+                        if ((_legFutureBases[i].position - _currentFeetBases[i]).magnitude < MINIMUM_DISTANCE_BETWEEN_CURRENT_BASE_TO_FUTURE_BASE_THRESHOLD)
+                        {
+                            _currentFeetBases[i] = _legFutureBases[i].position;
+                            _legsPositionZLerp[i] = 0;
+                            _legsPositionYLerp[i] = 0;
+                            _legsReachCeil[i] = false;
+                            _moveLegs[i] = false;
+                        }
+                    }
+                }
+                
                 UpdateLegPos(_legs[i].Bones, _legs[i].EndEffector, i);
             }
         }
@@ -408,6 +447,13 @@ namespace OctopusController
 
         #endregion
 
+        #region Utils
+
+        public float Map(float value, float originalMin, float originalMax, float newMin, float newMax)
+        {
+            return newMin + (value - originalMin) * (newMax - newMin) / (originalMax - originalMin);
+        }
+
         internal float Deg2Rad(float angle)
         {
             return angle * ((float)Math.PI / 180f);
@@ -474,5 +520,7 @@ namespace OctopusController
 
             return currentRotation * result;
         }
+
+        #endregion
     }
 }
