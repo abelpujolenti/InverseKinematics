@@ -37,7 +37,7 @@ namespace OctopusController
                 
                 case TentacleMode.TAIL:
 
-                    //LoadJoints(4, root);
+                    LoadJoints(4, root);
                     break;
                 
                 case TentacleMode.TENTACLE:
