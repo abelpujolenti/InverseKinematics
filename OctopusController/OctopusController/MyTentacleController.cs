@@ -42,22 +42,23 @@ namespace OctopusController
                 
                 case TentacleMode.TENTACLE:
                     //TODO: in _endEffectorphere you  keep a reference to the sphere with a collider attached to the endEffector
+                    LoadJoints(50, root, 0);
                     break;
             }
             return Bones;
         }
 
-        private void LoadJoints(int jointsLength, Transform root)
+        private void LoadJoints(int jointsLength, Transform root, int childIndex = 1)
         {
             List<Transform> transformList = new List<Transform> { root };
             
             for (int i = 0; i < jointsLength; i++)
             {
-                transformList.Add(transformList[i].GetChild(1));
+                transformList.Add(transformList[i].GetChild(childIndex));
                 Debug.Log(transformList[i]);
             }
             Debug.Log(transformList[transformList.Count - 1]);
-            _endEffectorSphere = transformList[transformList.Count - 1].GetChild(1);
+            _endEffectorSphere = transformList[transformList.Count - 1].GetChild(childIndex);
             Debug.Log(_endEffectorSphere);
                     
             _bones = transformList.ToArray();
